@@ -2,6 +2,7 @@
 session_name("ITGlib");
 session_start();
 require("inc/base.php");
+require("inc/ad.php");
 if(isset($_GET["a"])) {
 	if($_GET["a"] === "logout") {
 		unset($_SESSION["tuser"]);
@@ -28,14 +29,36 @@ if(isset($_GET["a"])) {
 	}
 } elseif(isset($_POST["user"])) {
 	if(!isset($_POST["pnamn"])) {
-		$sql = new sql(conf::get()["sql"]["server"], conf::get()["sql"]["user"], conf::get()["sql"]["pass"], conf::get()["sql"]["db"]);
-		$ok = $sql->get("SELECT * FROM lib_tusers WHERE user = \"".$_POST["user"]."\" AND pass = \"".crypt($_POST["pass"], "lib")."\" AND active = 1;");
+		$username = $_POST["id"];
+		$password = $_POST["pass"];
+		$ad = new ad($username, $password);
+		if($ad->status !== "connected") {
+			header("Location: index.php?msg=".urlencode("Du har <b>inte</b> loggats in. "));
+		} else {
+			$sql = new sql(conf::get()["sql"]["server"], conf::get()["sql"]["user"], conf::get()["sql"]["pass"], conf::get()["sql"]["db"]);
+			$ok = $sql->get("SELECT * FROM lib_adusers WHERE user = \"".$_POST["user"]."\" AND active = 1;");
+			if(count($ok) > 0) {
+				$ok = $sql->get("SELECT * FROM lib_users WHERE id = \"".$ok[0]["con"]."\" AND active = 1;");
+				if(count($ok) > 0) {
+					$_SESSION["tuser"] = [$ok[0], time()];
+					header("Location: index.php?msg=".urlencode("Du har loggats in"));
+				}
+			} else {
+				$ok = $sql->get("INSERT INTO lib_adusers(username, active) VALUES(\"".strtolower($username)."\", 0);");
+				if(count($ok) > 0) {
+					
+				} else {
+					header("Location: index.php?msg=".urlencode("Ditt konto har inte aktiverats."));
+				}
+			}
+		}
+		/*
 		if(count($ok) > 0) {
 			$_SESSION["tuser"] = [$ok[0], time()];
 			header("Location: index.php?msg=".urlencode("Du har loggats in"));
 		} else {
 			header("Location: index.php?msg=".urlencode("Du har <b>inte</b> loggats in. "));
-		}
+		}*/
 	}
 }
 layout::header();
@@ -344,7 +367,7 @@ foreach($books as $v) {
 		echo("<tr><th><p>".$v["book"]."</p></th><td><p>".$tid." dagar kvar</p></td></tr>");
 	}
 	echo("</tbody></table></div>");
-} elseif(isset($_GET["a"])) {
+}/* elseif(isset($_GET["a"])) {
 ?>
 <h2>Registrera</h2>
 <script>
@@ -407,7 +430,7 @@ function vispass(q) {
 	} else {
 		echo("<br>Ditt konto kunde inte skapas. <a href=\"index.php?a=reg\">Försök igen</a>");
 	}
-} elseif((!isset($_POST["namn"])) && (!isset($_POST["pnamn"]))) {
+}*/ elseif((!isset($_POST["namn"])) && (!isset($_POST["pnamn"]))) {
 ?>
 <h1>Logga in</h1>
 <form action="index.php" method="POST">
@@ -415,8 +438,9 @@ function vispass(q) {
 <input type="password" name="pass" placeholder="Lösenord" autocomplete="off"><br>
 <input type="submit" value="Logga in">
 </form>
-<a href="index.php?a=reg">Registrera konto</a>
+
 <?php
+	// <a href="index.php?a=reg">Registrera konto</a>
 }
 //unset($_SESSION["user"]);
 layout::footer();
