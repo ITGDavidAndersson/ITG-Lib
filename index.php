@@ -13,6 +13,11 @@ if(isset($_GET["a"])) {
 		$allok = true;
 		$books = explode("!_BREAK_!", $_POST["books"]);
 		foreach($books as $v) {
+			
+			$ok = $sql->set("SELECT ;");
+			
+			
+			
 			$ok = $sql->set("INSERT INTO lib_history(book, user) VALUES(\"".$v."\", ".$_SESSION["tuser"][0]["id"].");");
 			if(!$ok) {
 				if($allok === true) {
@@ -24,29 +29,30 @@ if(isset($_GET["a"])) {
 		if($allok !== true) {
 			header("Location: index.php?msg=".urlencode("Alla böcker gick inte att låna ut. Försök gärna igen med följande böcker: ".implode(", ", $allok)."."));
 		} else {
-			header("Location: index.php?msg=".urlencode("Böckerna har blivit utlånade till ".$_SESSION["tuser"][0]["namn"]."."));
+			header("Location: index.php?msg=".urlencode("Böckerna har blivit utlånade till ".$_SESSION["tuser"][0]["name"]."."));
 		}
 	}
 } elseif(isset($_POST["user"])) {
 	if(!isset($_POST["pnamn"])) {
-		$username = $_POST["id"];
+		$username = $_POST["user"];
 		$password = $_POST["pass"];
 		$ad = new ad($username, $password);
 		if($ad->status !== "connected") {
 			header("Location: index.php?msg=".urlencode("Du har <b>inte</b> loggats in. "));
 		} else {
 			$sql = new sql(conf::get()["sql"]["server"], conf::get()["sql"]["user"], conf::get()["sql"]["pass"], conf::get()["sql"]["db"]);
-			$ok = $sql->get("SELECT * FROM lib_adusers WHERE user = \"".$_POST["user"]."\" AND active = 1;");
+			$ok = $sql->get("SELECT * FROM lib_adusers WHERE username = \"".strtolower($_POST["user"])."\" AND active = 1;");
 			if(count($ok) > 0) {
-				$ok = $sql->get("SELECT * FROM lib_users WHERE id = \"".$ok[0]["con"]."\" AND active = 1;");
+				$ok = $sql->get("SELECT * FROM lib_users WHERE id = \"".$ok[0]["con"]."\";");
 				if(count($ok) > 0) {
 					$_SESSION["tuser"] = [$ok[0], time()];
 					header("Location: index.php?msg=".urlencode("Du har loggats in"));
 				}
 			} else {
-				$ok = $sql->get("INSERT INTO lib_adusers(username, active) VALUES(\"".strtolower($username)."\", 0);");
+				$ok = $sql->get("INSERT INTO lib_adusers(username, active) VALUES(\"".strtolower($username)."\", 1);");
 				if(count($ok) > 0) {
-					
+					$_SESSION["tuser"] = [["username" => strtolower($username)], time()];
+					header("Location: index.php?msg=".urlencode("Ditt konto har registrerats."));
 				} else {
 					header("Location: index.php?msg=".urlencode("Ditt konto har inte aktiverats."));
 				}
@@ -239,18 +245,19 @@ table * {
 </style>
 <?php
 if(isset($_SESSION["tuser"])) {
+	$realname = $_SESSION["tuser"][0]["name"];
 	echo <<<out
-<p><a href="index.php?a=logout">Logga ut {$_SESSION["tuser"][0]["user"]}</a></p>
+<p><a href="index.php?a=logout">Logga ut {$realname}</a></p>
 out;
 ?>
 <script>
-var logoutTimer = setTimeout(logout, 60000);
-var logouttime = 60;
+var logouttime = 120;
+var logoutTimer = setTimeout(logout, logouttime*1000);
 var updLogoutTextTimer = setInterval(updLogoutCountdown, 1000);
 function updLogoutTimer() {
 	clearTimeout(logoutTimer);
-	logoutTimer = setTimeout(logout, 60000);
-	logouttime = 60;
+	logoutTimer = setTimeout(logout, logouttime*1000);
+	logouttime = 120;
 	document.getElementById("logoutCountdown").style.display = "none";
 }
 function updLogoutCountdown() {
@@ -267,7 +274,7 @@ function updLogoutCountdown() {
 	logouttime--;
 }
 function logout() {
-	location.assign("http://infinite-boxes.com/?a=logout");
+	location.href = "./?a=logout";
 }
 document.addEventListener("mousemove", updLogoutTimer);
 document.addEventListener("keydown", updLogoutTimer);
@@ -355,18 +362,20 @@ foreach($books as $v) {
 </div>
 </form>
 <?php
-	$borrowedBooks = $sql->get("SELECT * FROM lib_history WHERE user = ".$_SESSION["tuser"][0]["id"]." AND returned IS NULL;");
-	echo("<div class=\"bblist\"><h3>Ej återlämnade böcker (".count($borrowedBooks).")</h3><table><tbody>");
-	foreach($borrowedBooks as $v) {
-		$tid = ceil((((intval(strtotime($v["time"]))+(60*60*24*14))-time()))/(60*60*24));
-		if(intval($tid) < 0) {
-			$tid = "<span style=\"color: #f00;\">".$tid."</span>";
-		} elseif(intval($tid) < 4) {
-			$tid = "<span style=\"color: #f80;\">".$tid."</span>";
+	if(isset($_SESSION["tuser"][0]["id"])) {
+		$borrowedBooks = $sql->get("SELECT * FROM lib_history WHERE user = ".$_SESSION["tuser"][0]["id"]." AND returned IS NULL;");
+		echo("<div class=\"bblist\"><h3>Ej återlämnade böcker (".count($borrowedBooks).")</h3><table><tbody>");
+		foreach($borrowedBooks as $v) {
+			$tid = ceil((((intval(strtotime($v["time"]))+(60*60*24*14))-time()))/(60*60*24));
+			if(intval($tid) < 0) {
+				$tid = "<span style=\"color: #f00;\">".$tid."</span>";
+			} elseif(intval($tid) < 4) {
+				$tid = "<span style=\"color: #f80;\">".$tid."</span>";
+			}
+			echo("<tr><th><p>".$v["book"]."</p></th><td><p>".$tid." dagar kvar</p></td></tr>");
 		}
-		echo("<tr><th><p>".$v["book"]."</p></th><td><p>".$tid." dagar kvar</p></td></tr>");
+		echo("</tbody></table></div>");
 	}
-	echo("</tbody></table></div>");
 }/* elseif(isset($_GET["a"])) {
 ?>
 <h2>Registrera</h2>

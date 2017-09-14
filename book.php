@@ -10,13 +10,13 @@ if(isset($_GET["return"])) {
 }
 $b = new books($_GET["isbn"]);
 $book = $b->get();
-if($book["status"] === "1") {
+/*if($book["status"] === "1") {
 	$status = "<span style=\"color: #f00;\">X</span>";
 } else {
 	$status = "<span style=\"color: #0f0;\">O</span>";
-}
+}*/
 echo "<p style=\"font-style: italic;\">".$book["author"]."</p>
-<h1>".$book["title"]." ".$status."</h1>";
+<h1>".$book["title"]."</h1>");// ".$status."</h1>";
 $list = [$book["subtitle"], $book["lang"], cats::get($book["cat"]), $book["info"], $book["img"]];
 $status = "";
 $txt = [
@@ -31,7 +31,7 @@ foreach($list as $k => $v) {
 		echo($txt[$k]);
 	}
 }
-echo("<br>Antal: ".$book["number"]."<br>");
+echo("<br>");//Antal: ".$book["number"]."<br>");
 if(isset($_SESSION["admin"])) {
 	echo("<a href=\"printbooks.php?a=".$book["isbn"]."\">Skriv ut streckkod för denna boken</a><br><a href=\"admineditbook.php?id=".$book["isbn"]."\">Redigera boken</a>");
 }
